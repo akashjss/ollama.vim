@@ -1,4 +1,4 @@
-# llama.vim
+# ollama.vim
 
 Local LLM-assisted text completion.
 
@@ -39,7 +39,7 @@ Local LLM-assisted text completion.
     git clone https://github.com/akashjss/ollama.vim
     ```
 
-    Then add `Plugin 'llama.vim'` to your *.vimrc* in the `vundle#begin()` section.
+    Then add `Plugin 'ollama.vim'` to your *.vimrc* in the `vundle#begin()` section.
 
 - lazy.nvim
 
@@ -51,28 +51,28 @@ Local LLM-assisted text completion.
 
 ### Plugin configuration
 
-You can customize *llama.vim* by setting the `g:llama_config` variable.
+You can customize *ollama.vim* by setting the `g:ollama_config` variable.
 
 Examples:
 
 1. Configure LLM Model:
 
     ```vim
-    " put before llama.vim loads
-    let g:llama_config = { 'show_info': 0 }
+    " put before ollama.vim loads
+    let g:ollama_config.model = "deepseek-coder-v2"
     ```
 
 2. Disable the inline info:
 
     ```vim
-    " put before llama.vim loads
-    let g:llama_config = { 'show_info': 0 }
+    " put before ollama.vim loads
+    let g:ollama_config = { 'show_info': 0 }
     ```
 
 3. Same thing but setting directly
 
     ```vim
-    let g:llama_config.show_info = v:false
+    let g:ollama_config.show_info = v:false
     ```
 
 4. Disable auto FIM (Fill-In-the-Middle) completion with lazy.nvim
@@ -91,15 +91,15 @@ Examples:
 5. Changing accept line keymap
 
     ```vim
-    let g:llama_config.keymap_accept_full = "<C-S>"
+    let g:ollama_config.keymap_accept_full = "<C-S>"
     ```
 
-Please refer to `:help llama_config` or the [source](./autoload/llama.vim)
+Please refer to `:help llama_config` or the [source](./autoload/ollama.vim)
 for the full list of options.
 
 ### llama.cpp setup
 
-The plugin requires a [llama.cpp](https://github.com/ggml-org/llama.cpp) server instance to be running at [`g:llama_config.endpoint`](https://github.com/akashjss/ollama.vim/blob/master/autoload/llama.vim#L37).
+The plugin requires a [ollama](https://ollama.com/) server instance to be running at [`g:ollama_config.endpoint`](https://github.com/akashjss/ollama.vim/blob/master/autoload/ollama.vim#L37).
 
 #### Mac OS
 
@@ -111,29 +111,29 @@ brew install llama.cpp
 
 Either build from source or use the latest binaries: https://github.com/ggml-org/llama.cpp/releases
 
-### llama.cpp settings
+### Ollama settings
 
 Here are recommended settings, depending on the amount of VRAM that you have:
 
 - More than 16GB VRAM:
 
   ```bash
-  llama-server --fim-qwen-7b-default
+  ollama run qwen2.5-coder
   ```
 
 - Less than 16GB VRAM:
 
   ```bash
-  llama-server --fim-qwen-3b-default
+  ollama run qwen2.5-coder:3b
   ```
 
 - Less than 8GB VRAM:
 
   ```bash
-  llama-server --fim-qwen-1.5b-default
+  ollama run qwen2.5-coder:1.5b
   ```
 
-Use `:help llama` for more details.
+Use `:help ollama` for more details.
 
 ### Recommended LLMs
 
@@ -143,13 +143,13 @@ The plugin requires FIM-compatible models: [HF collection](https://huggingface.c
 
 <img width="1758" alt="image" src="https://github.com/user-attachments/assets/8f5748b3-183a-4b7f-90e1-9148f0a58883">
 
-### Using `llama.vim` on M1 Pro (2021) with `Qwen2.5-Coder 1.5B Q8_0`:
+### Using `ollama.vim` on M3 Pro with `Qwen2.5-Coder 7B Q8_0`:
 
 <img width="1512" alt="image" src="https://github.com/user-attachments/assets/0ccb93c6-c5c5-4376-a5a3-cc99fafc5eef">
 
 The orange text is the generated suggestion. The green text contains performance stats for the FIM request: the currently used context is `15186` tokens and the maximum is `32768`. There are `30` chunks in the ring buffer with extra context (out of `64`). So far, `1` chunk has been evicted in the current session and there are `0` chunks in queue. The newly computed prompt tokens for this request were `260` and the generated tokens were `24`. It took `1245 ms` to generate this suggestion after entering the letter `c` on the current line.
 
-### Using `llama.vim` on M2 Ultra with `Qwen2.5-Coder 7B Q8_0`:
+### Using `ollama.vim` on M2 Ultra with `Qwen2.5-Coder 7B Q8_0`:
 
 https://github.com/user-attachments/assets/1f1eb408-8ac2-4bd2-b2cf-6ab7d6816754
 
