@@ -41,6 +41,8 @@ highlight ollama_hl_info guifg=#77ff2f ctermfg=119
 "   keymap_accept_line: keymap to accept line suggestion, default: <S-Tab>
 "   keymap_accept_word: keymap to accept word suggestion, default: <C-B>
 "
+
+" Define default configuration
 let s:default_config = {
     \ 'endpoint':           'http://127.0.0.1:11434/api/generate',
     \ 'model':             '',  " Empty by default, user must specify
@@ -64,15 +66,17 @@ let s:default_config = {
     \ 'keymap_accept_word': "<C-B>",
     \ }
 
-let ollama_config = get(g:, 'ollama_config', s:default_config)
-let g:ollama_config = extendnew(s:default_config, ollama_config, 'force')
+" Initialize global configuration
+if !exists('g:ollama_config')
+    let g:ollama_config = {}
+endif
 
+" Merge user config with defaults
+let g:ollama_config = extend(copy(s:default_config), g:ollama_config, 'force')
+
+" Initialize plugin state
 let s:ollama_enabled = v:true
-
-" containes cached responses from the server
-" used to avoid re-computing the same completions and to also create new completions with similar context
-" ref: https://github.com/ggml-org/llama.vim/pull/18
-let g:cache_data = {}
+let g:cache_data = {}  " contains cached responses from the server
 
 " TODO: Currently the cache uses a random eviction policy. A more clever policy could be implemented (eg. LRU).
 function! s:cache_insert(key, value)
@@ -122,6 +126,7 @@ function ollama#setup_commands()
     command! OllamaEnable  call ollama#init()
     command! OllamaDisable call ollama#disable()
     command! OllamaToggle  call ollama#toggle()
+    command! OllamaDebug   call ollama#debug()
 endfunction
 
 function! ollama#init()
@@ -497,7 +502,9 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     endif
 
     " Debug logging
-    echom "Starting FIM request at position: " . l:pos_x . "," . l:pos_y
+    echohl WarningMsg
+    echom "[Ollama] Starting FIM request at position: " . l:pos_x . "," . l:pos_y
+    echohl None
 
     " avoid sending repeated requests too fast
     if s:current_job != v:null
@@ -518,10 +525,14 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     let l:indent = l:ctx_local['indent']
 
     " Debug logging
-    echom "Context prepared - prefix length: " . len(l:prefix) . ", middle length: " . len(l:middle) . ", suffix length: " . len(l:suffix)
+    echohl WarningMsg
+    echom "[Ollama] Context prepared - prefix length: " . len(l:prefix) . ", middle length: " . len(l:middle) . ", suffix length: " . len(l:suffix)
+    echohl None
 
     if a:is_auto && len(l:ctx_local['line_cur_suffix']) > g:ollama_config.max_line_suffix
-        echom "Skipping due to max_line_suffix limit"
+        echohl WarningMsg
+        echom "[Ollama] Skipping due to max_line_suffix limit"
+        echohl None
         return
     endif
 
@@ -602,8 +613,10 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
         \ })
 
     " Debug logging
-    echom "Sending request to Ollama at: " . g:ollama_config.endpoint
-    echom "Request data: " . l:request
+    echohl WarningMsg
+    echom "[Ollama] Sending request to Ollama at: " . g:ollama_config.endpoint
+    echom "[Ollama] Request data: " . l:request
+    echohl None
 
     let l:curl_command = [
         \ "curl",
@@ -620,7 +633,9 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     endif
 
     " Debug logging
-    echom "Curl command: " . join(l:curl_command, " ")
+    echohl WarningMsg
+    echom "[Ollama] Curl command: " . join(l:curl_command, " ")
+    echohl None
 
     if s:current_job != v:null
         if s:ghost_text_nvim
@@ -672,8 +687,10 @@ endfunction
 " callback that processes the FIM result from the server
 function! s:fim_on_response(hashes, job_id, data, event = v:null)
     " Debug logging
-    echom "Received response from Ollama"
-
+    echohl WarningMsg
+    echom "[Ollama] Received response from Ollama"
+    echohl None
+    
     if s:ghost_text_nvim
         let l:raw = join(a:data, "\n")
     elseif s:ghost_text_vim
@@ -681,11 +698,15 @@ function! s:fim_on_response(hashes, job_id, data, event = v:null)
     endif
 
     " Debug logging
-    echom "Raw response: " . l:raw
+    echohl WarningMsg
+    echom "[Ollama] Raw response: " . l:raw
+    echohl None
 
     " ignore empty results
     if len(l:raw) == 0
-        echom "Empty response received"
+        echohl WarningMsg
+        echom "[Ollama] Empty response received"
+        echohl None
         return
     endif
 
@@ -705,10 +726,14 @@ endfunction
 
 function! s:fim_on_exit(job_id, exit_code, event = v:null)
     " Debug logging
-    echom "Job exited with code: " . a:exit_code
-
+    echohl WarningMsg
+    echom "[Ollama] Job exited with code: " . a:exit_code
+    echohl None
+    
     if a:exit_code != 0
-        echom "Job failed with exit code: " . a:exit_code
+        echohl ErrorMsg
+        echom "[Ollama] Job failed with exit code: " . a:exit_code
+        echohl None
     endif
 
     let s:current_job = v:null
@@ -1077,4 +1102,18 @@ function! ollama#fim_hide()
     exe 'silent! iunmap <buffer> ' . g:ollama_config.keymap_accept_full
     exe 'silent! iunmap <buffer> ' . g:ollama_config.keymap_accept_line
     exe 'silent! iunmap <buffer> ' . g:ollama_config.keymap_accept_word
+endfunction
+
+" Add a debug command to show current configuration
+function! ollama#debug() abort
+    echohl WarningMsg
+    echom "[Ollama] Current Configuration:"
+    echom "  Model: " . g:ollama_config.model
+    echom "  Endpoint: " . g:ollama_config.endpoint
+    echom "  Auto FIM: " . g:ollama_config.auto_fim
+    echom "  Show Info: " . g:ollama_config.show_info
+    echom "  N Prefix: " . g:ollama_config.n_prefix
+    echom "  N Suffix: " . g:ollama_config.n_suffix
+    echom "  N Predict: " . g:ollama_config.n_predict
+    echohl None
 endfunction
