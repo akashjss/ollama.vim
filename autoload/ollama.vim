@@ -980,8 +980,6 @@ function! s:fim_render(pos_x, pos_y, data)
     echom "[Ollama] Line parts - prefix: '" . l:line_cur_prefix . "', suffix: '" . l:line_cur_suffix . "'"
     echohl None
 
-    " ... rest of the function remains unchanged ...
-
     let l:content[-1] .= l:line_cur_suffix
 
     " if only whitespaces - do not accept
