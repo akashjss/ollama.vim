@@ -29,14 +29,14 @@ Local LLM-assisted text completion.
 - vim-plug
 
     ```vim
-    Plug 'ggml-org/llama.vim'
+    Plug 'akashjss/ollama.vim'
     ```
 
 - Vundle
 
     ```bash
     cd ~/.vim/bundle
-    git clone https://github.com/ggml-org/llama.vim
+    git clone https://github.com/akashjss/ollama.vim
     ```
 
     Then add `Plugin 'llama.vim'` to your *.vimrc* in the `vundle#begin()` section.
@@ -45,7 +45,7 @@ Local LLM-assisted text completion.
 
     ```lua
     {
-        'ggml-org/llama.vim',
+        'akashjss/ollama.vim',
     }
     ```
 
@@ -55,24 +55,31 @@ You can customize *llama.vim* by setting the `g:llama_config` variable.
 
 Examples:
 
-1. Disable the inline info:
+1. Configure LLM Model:
 
     ```vim
     " put before llama.vim loads
     let g:llama_config = { 'show_info': 0 }
     ```
 
-2. Same thing but setting directly
+2. Disable the inline info:
+
+    ```vim
+    " put before llama.vim loads
+    let g:llama_config = { 'show_info': 0 }
+    ```
+
+3. Same thing but setting directly
 
     ```vim
     let g:llama_config.show_info = v:false
     ```
 
-3. Disable auto FIM (Fill-In-the-Middle) completion with lazy.nvim
+4. Disable auto FIM (Fill-In-the-Middle) completion with lazy.nvim
 
     ```lua
     {
-        'ggml-org/llama.vim',
+        'akashjss/ollama.vim',
         init = function()
             vim.g.llama_config = {
                 auto_fim = false,
@@ -81,7 +88,7 @@ Examples:
     }
     ```
 
-4. Changing accept line keymap
+5. Changing accept line keymap
 
     ```vim
     let g:llama_config.keymap_accept_full = "<C-S>"
@@ -92,7 +99,7 @@ for the full list of options.
 
 ### llama.cpp setup
 
-The plugin requires a [llama.cpp](https://github.com/ggml-org/llama.cpp) server instance to be running at [`g:llama_config.endpoint`](https://github.com/ggml-org/llama.vim/blob/master/autoload/llama.vim#L37).
+The plugin requires a [llama.cpp](https://github.com/ggml-org/llama.cpp) server instance to be running at [`g:llama_config.endpoint`](https://github.com/akashjss/ollama.vim/blob/master/autoload/llama.vim#L37).
 
 #### Mac OS
 
