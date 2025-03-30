@@ -123,21 +123,46 @@ function! ollama#init()
     if empty(g:ollama_config.model)
         echohl ErrorMsg
         echo 'ollama.vim requires a model to be specified in g:ollama_config.model'
-        echo 'Example: let g:ollama_config.model = "deepseek-coder-v2"'
+        echo 'Example: let g:ollama_config.model = "gemma3:12b"'
         echohl None
         return
     endif
 
-    " Check if model is available
-    let l:model_check = ['curl', '--silent', '--request', 'POST', '--url', g:ollama_config.endpoint, '--header', 'Content-Type: application/json', '--data', '{"model": "' . g:ollama_config.model . '", "prompt": "test"}']
+    " Check if model is available using list command
+    let l:model_check = ['curl', '--silent', '--request', 'GET', '--url', 'http://127.0.0.1:11434/api/tags']
     let l:result = system(join(l:model_check, ' '))
     if v:shell_error != 0
         echohl ErrorMsg
-        echo 'Model "' . g:ollama_config.model . '" is not available. Please pull it first using:'
-        echo 'ollama pull ' . g:ollama_config.model
+        echo 'Failed to check model availability. Please ensure Ollama server is running.'
         echohl None
         return
     endif
+
+    try
+        let l:response = json_decode(l:result)
+        let l:models = get(l:response, 'models', [])
+        let l:model_found = v:false
+        
+        for l:model in l:models
+            if get(l:model, 'name', '') == g:ollama_config.model
+                let l:model_found = v:true
+                break
+            endif
+        endfor
+
+        if !l:model_found
+            echohl ErrorMsg
+            echo 'Model "' . g:ollama_config.model . '" is not available. Please pull it first using:'
+            echo 'ollama pull ' . g:ollama_config.model
+            echohl None
+            return
+        endif
+    catch /.*/
+        echohl ErrorMsg
+        echo 'Failed to parse model list response: ' . v:exception
+        echohl None
+        return
+    endtry
 
     call ollama#setup_commands()
 

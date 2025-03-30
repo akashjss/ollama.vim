@@ -9,7 +9,7 @@ endif
 " Set default values for all required configuration options
 let default_config = {
     \ 'endpoint': 'http://127.0.0.1:11434/api/generate',
-    \ 'model': 'deepseek-coder-v2',
+    \ 'model': 'gemma3:12b',  " Using gemma3:12b as default since it's available
     \ 'api_key': '',
     \ 'n_prefix': 256,
     \ 'n_suffix': 64,
