@@ -496,6 +496,9 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
         let l:pos_y = line('.')
     endif
 
+    " Debug logging
+    echom "Starting FIM request at position: " . l:pos_x . "," . l:pos_y
+
     " avoid sending repeated requests too fast
     if s:current_job != v:null
         if s:timer_fim != -1
@@ -514,7 +517,11 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     let l:suffix = l:ctx_local['suffix']
     let l:indent = l:ctx_local['indent']
 
+    " Debug logging
+    echom "Context prepared - prefix length: " . len(l:prefix) . ", middle length: " . len(l:middle) . ", suffix length: " . len(l:suffix)
+
     if a:is_auto && len(l:ctx_local['line_cur_suffix']) > g:ollama_config.max_line_suffix
+        echom "Skipping due to max_line_suffix limit"
         return
     endif
 
@@ -594,6 +601,10 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
         \ }
         \ })
 
+    " Debug logging
+    echom "Sending request to Ollama at: " . g:ollama_config.endpoint
+    echom "Request data: " . l:request
+
     let l:curl_command = [
         \ "curl",
         \ "--silent",
@@ -607,6 +618,9 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     if exists ("g:ollama_config.api_key") && len("g:ollama_config.api_key") > 0
         call extend(l:curl_command, ['--header', 'Authorization: Bearer ' .. g:ollama_config.api_key])
     endif
+
+    " Debug logging
+    echom "Curl command: " . join(l:curl_command, " ")
 
     if s:current_job != v:null
         if s:ghost_text_nvim
@@ -657,14 +671,21 @@ endfunction
 
 " callback that processes the FIM result from the server
 function! s:fim_on_response(hashes, job_id, data, event = v:null)
+    " Debug logging
+    echom "Received response from Ollama"
+
     if s:ghost_text_nvim
         let l:raw = join(a:data, "\n")
     elseif s:ghost_text_vim
         let l:raw = a:data
     endif
 
+    " Debug logging
+    echom "Raw response: " . l:raw
+
     " ignore empty results
     if len(l:raw) == 0
+        echom "Empty response received"
         return
     endif
 
@@ -683,6 +704,9 @@ function! s:fim_on_response(hashes, job_id, data, event = v:null)
 endfunction
 
 function! s:fim_on_exit(job_id, exit_code, event = v:null)
+    " Debug logging
+    echom "Job exited with code: " . a:exit_code
+
     if a:exit_code != 0
         echom "Job failed with exit code: " . a:exit_code
     endif
