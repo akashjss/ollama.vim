@@ -7,7 +7,7 @@ if !exists('g:ollama_config')
 endif
 
 " Set default values for all required configuration options
-let default_config = {
+let s:default_config = {
     \ 'endpoint': 'http://127.0.0.1:11434/api/generate',
     \ 'model': 'gemma3:12b',  " Using gemma3:12b as default since it's available
     \ 'api_key': '',
@@ -31,7 +31,7 @@ let default_config = {
     \ }
 
 " Merge defaults with existing config
-for [key, value] in items(default_config)
+for [key, value] in items(s:default_config)
     if !has_key(g:ollama_config, key)
         let g:ollama_config[key] = value
     endif
