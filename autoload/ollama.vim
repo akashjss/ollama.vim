@@ -64,13 +64,8 @@ let s:default_config = {
     \ 'keymap_accept_word': "<C-B>",
     \ }
 
-" Initialize global config if not already set
-if !exists('g:ollama_config')
-    let g:ollama_config = {}
-endif
-
-" Merge user config with defaults
-let g:ollama_config = extendnew(s:default_config, g:ollama_config, 'force')
+let ollama_config = get(g:, 'ollama_config', s:default_config)
+let g:ollama_config = extendnew(s:default_config, ollama_config, 'force')
 
 let s:ollama_enabled = v:true
 
@@ -364,7 +359,7 @@ function! s:ring_update()
         \ 'stream': v:false,
         \ 'options': {
         \     'num_predict': g:ollama_config.n_predict,
-        \     'temperature': 0.7,
+        \     'temperature': 0.0,
         \     'top_k': 40,
         \     'top_p': 0.90
         \ }

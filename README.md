@@ -81,7 +81,7 @@ Examples:
     {
         'akashjss/ollama.vim',
         init = function()
-            vim.g.llama_config = {
+            vim.g.ollama_config = {
                 auto_fim = false,
             }
         end,
@@ -94,7 +94,7 @@ Examples:
     let g:ollama_config.keymap_accept_full = "<C-S>"
     ```
 
-Please refer to `:help llama_config` or the [source](./autoload/ollama.vim)
+Please refer to `:help ollama_config` or the [source](./autoload/ollama.vim)
 for the full list of options.
 
 ### llama.cpp setup
