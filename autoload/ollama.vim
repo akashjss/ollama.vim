@@ -64,8 +64,13 @@ let s:default_config = {
     \ 'keymap_accept_word': "<C-B>",
     \ }
 
-let ollama_config = get(g:, 'ollama_config', s:default_config)
-let g:ollama_config = extendnew(s:default_config, ollama_config, 'force')
+" Initialize global config if not already set
+if !exists('g:ollama_config')
+    let g:ollama_config = {}
+endif
+
+" Merge user config with defaults
+let g:ollama_config = extendnew(s:default_config, g:ollama_config, 'force')
 
 let s:ollama_enabled = v:true
 
