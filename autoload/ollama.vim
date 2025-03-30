@@ -382,11 +382,11 @@ function! s:ring_update()
     " Prepare the request for Ollama API
     let l:request = json_encode({
         \ 'model': g:ollama_config.model,
-        \ 'prompt': join(l:extra_context, "\n"),
+        \ 'prompt': '<PRE> ' . join(l:extra_context, "\n") . ' <SUF>',
         \ 'stream': v:false,
         \ 'options': {
         \     'num_predict': g:ollama_config.n_predict,
-        \     'temperature': 0.0,
+        \     'temperature': 0.7,
         \     'top_k': 40,
         \     'top_p': 0.90
         \ }
@@ -624,7 +624,7 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     " Prepare the request for Ollama API
     let l:request = json_encode({
         \ 'model': g:ollama_config.model,
-        \ 'prompt': l:prefix . l:middle,
+        \ 'prompt': '<PRE> ' . l:prefix . l:middle . ' <SUF>' . l:suffix . ' <MID>',
         \ 'stream': v:false,
         \ 'options': {
         \     'num_predict': g:ollama_config.n_predict,
@@ -918,7 +918,17 @@ function! s:fim_render(pos_x, pos_y, data)
         echom "[Ollama] Parsed response for rendering: " . json_encode(l:response)
         echohl None
 
-        for l:part in split(get(l:response, 'response', ''), "\n", 1)
+        " Extract the generated text from Ollama response
+        let l:generated_text = get(l:response, 'response', '')
+        if empty(l:generated_text)
+            echohl WarningMsg
+            echom "[Ollama] No text generated in response"
+            echohl None
+            return
+        endif
+
+        " Split the generated text into lines
+        for l:part in split(l:generated_text, "\n", 1)
             call add(l:content, l:part)
         endfor
 
