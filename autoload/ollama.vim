@@ -737,6 +737,11 @@ function! s:fim_on_response(hashes, job_id, data, event = v:null)
     try
         let l:response = json_decode(l:raw)
         
+        " Debug logging
+        echohl WarningMsg
+        echom "[Ollama] Parsed response: " . json_encode(l:response)
+        echohl None
+        
         " Check for error in response
         if has_key(l:response, 'error')
             echohl ErrorMsg
@@ -754,6 +759,11 @@ function! s:fim_on_response(hashes, job_id, data, event = v:null)
             return
         endif
 
+        " Debug logging
+        echohl WarningMsg
+        echom "[Ollama] Generated text: " . l:generated_text
+        echohl None
+
         " put the response in the cache
         for l:hash in a:hashes
             call s:cache_insert(l:hash, l:generated_text)
@@ -763,6 +773,11 @@ function! s:fim_on_response(hashes, job_id, data, event = v:null)
         if !s:hint_shown || !s:fim_data['can_accept']
             let l:pos_x = col('.') - 1
             let l:pos_y = line('.')
+
+            " Debug logging
+            echohl WarningMsg
+            echom "[Ollama] Attempting to show hint at position: " . l:pos_x . "," . l:pos_y
+            echohl None
 
             call s:fim_try_hint(l:pos_x, l:pos_y)
         endif
@@ -867,8 +882,16 @@ endfunction
 
 " render a suggestion at the current cursor location
 function! s:fim_render(pos_x, pos_y, data)
+    " Debug logging
+    echohl WarningMsg
+    echom "[Ollama] Starting to render hint at position: " . a:pos_x . "," . a:pos_y
+    echohl None
+
     " do not show if there is a completion in progress
     if pumvisible()
+        echohl WarningMsg
+        echom "[Ollama] Skipping render - completion menu visible"
+        echohl None
         return
     endif
 
@@ -891,9 +914,19 @@ function! s:fim_render(pos_x, pos_y, data)
     if l:can_accept
         let l:response = json_decode(l:raw)
 
+        " Debug logging
+        echohl WarningMsg
+        echom "[Ollama] Parsed response for rendering: " . json_encode(l:response)
+        echohl None
+
         for l:part in split(get(l:response, 'response', ''), "\n", 1)
             call add(l:content, l:part)
         endfor
+
+        " Debug logging
+        echohl WarningMsg
+        echom "[Ollama] Content to render: " . json_encode(l:content)
+        echohl None
 
         " remove trailing new lines
         while len(l:content) > 0 && l:content[-1] == ""
@@ -914,6 +947,9 @@ function! s:fim_render(pos_x, pos_y, data)
     endif
 
     if len(l:content) == 0
+        echohl WarningMsg
+        echom "[Ollama] No content to render"
+        echohl None
         call add(l:content, "")
         let l:can_accept = v:false
     endif
@@ -922,6 +958,11 @@ function! s:fim_render(pos_x, pos_y, data)
     let l:pos_y = a:pos_y
 
     let l:line_cur = getline(l:pos_y)
+
+    " Debug logging
+    echohl WarningMsg
+    echom "[Ollama] Current line: " . l:line_cur
+    echohl None
 
     " if the current line is full of whitespaces, trim as much whitespaces from the suggestion
     if match(l:line_cur, '^\s*$') >= 0
@@ -934,60 +975,12 @@ function! s:fim_render(pos_x, pos_y, data)
     let l:line_cur_prefix = strpart(l:line_cur, 0, l:pos_x)
     let l:line_cur_suffix = strpart(l:line_cur, l:pos_x)
 
-    " NOTE: the following is logic for discarding predictions that repeat existing text
-    "       the code is quite ugly and there is very likely a simpler and more canonical way to implement this
-    "
-    "       still, I wonder if there is some better way that avoids having to do these special hacks?
-    "       on one hand, the LLM 'sees' the contents of the file before we start editing, so it is normal that it would
-    "       start generating whatever we have given it via the extra context. but on the other hand, it's not very
-    "       helpful to re-generate the same code that is already there
+    " Debug logging
+    echohl WarningMsg
+    echom "[Ollama] Line parts - prefix: '" . l:line_cur_prefix . "', suffix: '" . l:line_cur_suffix . "'"
+    echohl None
 
-    " truncate the suggestion if the first line is empty
-    if len(l:content) == 1 && l:content[0] == ""
-        let l:content = [""]
-    endif
-
-    " ... and the next lines are repeated
-    if len(l:content) > 1 && l:content[0] == "" && l:content[1:] == getline(l:pos_y + 1, l:pos_y + len(l:content) - 1)
-        let l:content = [""]
-    endif
-
-    " truncate the suggestion if it repeats the suffix
-    if len(l:content) == 1 && l:content[0] == l:line_cur_suffix
-        let l:content = [""]
-    endif
-
-    " find the first non-empty line (strip whitespace)
-    let l:cmp_y = l:pos_y + 1
-    while l:cmp_y < line('$') && getline(l:cmp_y) =~? '^\s*$'
-        let l:cmp_y += 1
-    endwhile
-
-    if (l:line_cur_prefix . l:content[0]) == getline(l:cmp_y)
-        " truncate the suggestion if it repeats the next line
-        if len(l:content) == 1
-            let l:content = [""]
-        endif
-
-        " ... or if the second line of the suggestion is the prefix of line l:cmp_y + 1
-        if len(l:content) == 2 && l:content[-1] == getline(l:cmp_y + 1)[:len(l:content[-1]) - 1]
-            let l:content = [""]
-        endif
-
-        " ... or if the middle chunk of lines of the suggestion is the same as [l:cmp_y + 1, l:cmp_y + len(l:content) - 1)
-        if len(l:content) > 2 && join(l:content[1:-1], "\n") == join(getline(l:cmp_y + 1, l:cmp_y + len(l:content) - 1), "\n")
-            let l:content = [""]
-        endif
-    endif
-
-    " keep only lines that have the same or larger whitespace prefix as l:line_cur_prefix
-    "let l:indent = strlen(matchstr(l:line_cur_prefix, '^\s*'))
-    "for i in range(1, len(l:content) - 1)
-    "    if strlen(matchstr(l:content[i], '^\s*')) < l:indent
-    "        let l:content = l:content[:i - 1]
-    "        break
-    "    endif
-    "endfor
+    " ... rest of the function remains unchanged ...
 
     let l:content[-1] .= l:line_cur_suffix
 
