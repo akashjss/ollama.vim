@@ -369,8 +369,6 @@ function! s:ring_update()
 
     call add(s:ring_chunks, remove(s:ring_queued, 0))
 
-    "let &statusline = 'updated context: ' . len(s:ring_chunks) . ' / ' . len(s:ring_queued)
-
     " send asynchronous job with the new extra context so that it is ready for the next FIM
     let l:extra_context = []
     for l:chunk in s:ring_chunks
@@ -381,11 +379,10 @@ function! s:ring_update()
             \ })
     endfor
 
-    " no samplers needed here
+    " Prepare the request for Ollama API
     let l:request = json_encode({
-        \ 'model': g:ollama_config.model,  " Use the configured model
-        \ 'prompt': l:prefix . l:middle,
-        \ 'suffix': l:suffix,
+        \ 'model': g:ollama_config.model,
+        \ 'prompt': join(l:extra_context, "\n"),
         \ 'stream': v:false,
         \ 'options': {
         \     'num_predict': g:ollama_config.n_predict,
