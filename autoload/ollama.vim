@@ -1,4 +1,7 @@
 " vim: ts=4 sts=4 expandtab
+" Configuration is in plugin/ollama.vim
+" This file contains the implementation of the Ollama plugin functions
+
 " colors (adjust to your liking)
 highlight ollama_hl_hint guifg=#ff772f ctermfg=202
 highlight ollama_hl_info guifg=#77ff2f ctermfg=119
@@ -99,17 +102,39 @@ endfunction
 
 function! ollama#init()
     if !executable('curl')
-        echohl WarningMsg
+        echohl ErrorMsg
         echo 'ollama.vim requires the "curl" command to be available'
         echohl None
         return
     endif
 
-    " Check if model is specified
+    " Check if Ollama server is running
+    let l:check_cmd = ['curl', '--silent', '--head', g:ollama_config.endpoint]
+    let l:result = system(join(l:check_cmd, ' '))
+    if v:shell_error != 0
+        echohl ErrorMsg
+        echo 'ollama.vim requires Ollama server to be running at ' . g:ollama_config.endpoint
+        echo 'Please start Ollama server first'
+        echohl None
+        return
+    endif
+
+    " Check if model is specified and available
     if empty(g:ollama_config.model)
-        echohl WarningMsg
+        echohl ErrorMsg
         echo 'ollama.vim requires a model to be specified in g:ollama_config.model'
         echo 'Example: let g:ollama_config.model = "deepseek-coder-v2"'
+        echohl None
+        return
+    endif
+
+    " Check if model is available
+    let l:model_check = ['curl', '--silent', '--request', 'POST', '--url', g:ollama_config.endpoint, '--header', 'Content-Type: application/json', '--data', '{"model": "' . g:ollama_config.model . '", "prompt": "test"}']
+    let l:result = system(join(l:model_check, ' '))
+    if v:shell_error != 0
+        echohl ErrorMsg
+        echo 'Model "' . g:ollama_config.model . '" is not available. Please pull it first using:'
+        echo 'ollama pull ' . g:ollama_config.model
         echohl None
         return
     endif
@@ -124,7 +149,7 @@ function! ollama#init()
 
     let s:hint_shown = v:false
     let s:pos_y_pick = -9999 " last y where we picked a chunk
-    let s:indent_last = -1   " last indentation level that was accepted (TODO: this might be buggy)
+    let s:indent_last = -1   " last indentation level that was accepted
 
     let s:timer_fim = -1
     let s:t_last_move = reltime() " last time the cursor moved
@@ -136,7 +161,10 @@ function! ollama#init()
 
     if s:ghost_text_vim
         if version < 901
+            echohl ErrorMsg
             echom 'Warning: ollama.vim requires version 901 or greater. Current version: ' . version
+            echohl None
+            return
         endif
         let s:hlgroup_hint = 'ollama_hl_hint'
         let s:hlgroup_info = 'ollama_hl_info'
@@ -181,6 +209,10 @@ function! ollama#init()
     if g:ollama_config.ring_n_chunks > 0
         call s:ring_update()
     endif
+
+    echohl WarningMsg
+    echom "[Ollama] Plugin initialized successfully"
+    echohl None
 endfunction
 
 " compute how similar two chunks of text are
@@ -567,6 +599,7 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
             \ })
     endfor
 
+    " Prepare the request for Ollama API
     let l:request = json_encode({
         \ 'model': g:ollama_config.model,
         \ 'prompt': l:prefix . l:middle,
@@ -576,7 +609,8 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
         \     'num_predict': g:ollama_config.n_predict,
         \     'temperature': 0.7,
         \     'top_k': 40,
-        \     'top_p': 0.90
+        \     'top_p': 0.90,
+        \     'stop': ["\n\n", "```"]  " Stop on double newline or code block end
         \ }
         \ })
 
@@ -678,18 +712,43 @@ function! s:fim_on_response(hashes, job_id, data, event = v:null)
         return
     endif
 
-    " put the response in the cache
-    for l:hash in a:hashes
-        call s:cache_insert(l:hash, l:raw)
-    endfor
+    try
+        let l:response = json_decode(l:raw)
+        
+        " Check for error in response
+        if has_key(l:response, 'error')
+            echohl ErrorMsg
+            echom "[Ollama] Error from server: " . l:response.error
+            echohl None
+            return
+        endif
 
-    " if nothing is currently displayed - show the hint directly
-    if !s:hint_shown || !s:fim_data['can_accept']
-        let l:pos_x = col('.') - 1
-        let l:pos_y = line('.')
+        " Extract the generated text from Ollama response
+        let l:generated_text = get(l:response, 'response', '')
+        if empty(l:generated_text)
+            echohl WarningMsg
+            echom "[Ollama] No text generated in response"
+            echohl None
+            return
+        endif
 
-        call s:fim_try_hint(l:pos_x, l:pos_y)
-    endif
+        " put the response in the cache
+        for l:hash in a:hashes
+            call s:cache_insert(l:hash, l:generated_text)
+        endfor
+
+        " if nothing is currently displayed - show the hint directly
+        if !s:hint_shown || !s:fim_data['can_accept']
+            let l:pos_x = col('.') - 1
+            let l:pos_y = line('.')
+
+            call s:fim_try_hint(l:pos_x, l:pos_y)
+        endif
+    catch /.*/
+        echohl ErrorMsg
+        echom "[Ollama] Failed to parse response: " . v:exception
+        echohl None
+    endtry
 endfunction
 
 function! s:fim_on_exit(job_id, exit_code, event = v:null)
