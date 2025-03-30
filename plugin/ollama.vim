@@ -6,9 +6,9 @@ if !exists('g:ollama_config')
     let g:ollama_config = {}
 endif
 
-" Using gemma3:12b as default since it's available
+" Using qwen2.5:7b as default since it's available
 let g:ollama_config.endpoint = get(g:ollama_config, 'endpoint', 'http://127.0.0.1:11434/api/generate')
-let g:ollama_config.model = get(g:ollama_config, 'model', 'gemma3:12b')
+let g:ollama_config.model = get(g:ollama_config, 'model', 'qwen2.5:7b')
 let g:ollama_config.api_key = get(g:ollama_config, 'api_key', '')
 let g:ollama_config.n_prefix = get(g:ollama_config, 'n_prefix', 256)
 let g:ollama_config.n_suffix = get(g:ollama_config, 'n_suffix', 64)

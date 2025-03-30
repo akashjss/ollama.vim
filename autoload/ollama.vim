@@ -123,7 +123,7 @@ function! ollama#init()
     if empty(g:ollama_config.model)
         echohl ErrorMsg
         echo 'ollama.vim requires a model to be specified in g:ollama_config.model'
-        echo 'Example: let g:ollama_config.model = "gemma3:12b"'
+        echo 'Example: let g:ollama_config.model = "qwen2.5:7b"'
         echohl None
         return
     endif
