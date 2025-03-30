@@ -625,7 +625,6 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     let l:request = json_encode({
         \ 'model': g:ollama_config.model,
         \ 'prompt': l:prefix . l:middle,
-        \ 'suffix': l:suffix,
         \ 'stream': v:false,
         \ 'options': {
         \     'num_predict': g:ollama_config.n_predict,
