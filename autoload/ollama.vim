@@ -856,20 +856,24 @@ function! s:fim_try_hint(pos_x, pos_y)
                     continue
                 endif
 
-                let l:response = json_decode(l:response_cached)
-                if l:response['response'][0:i] !=# l:removed
-                    continue
-                endif
-
-                let l:response['response'] = l:response['response'][i + 1:]
-                if len(l:response['response']) > 0
-                    if l:raw == v:null
-                        let l:raw = json_encode(l:response)
-                    elseif len(l:response['response']) > l:best
-                        let l:best = len(l:response['response'])
-                        let l:raw = json_encode(l:response)
+                try
+                    let l:response = json_decode(l:response_cached)
+                    if l:response['response'][0:i] !=# l:removed
+                        continue
                     endif
-                endif
+
+                    let l:response['response'] = l:response['response'][i + 1:]
+                    if len(l:response['response']) > 0
+                        if l:raw == v:null
+                            let l:raw = json_encode(l:response)
+                        elseif len(l:response['response']) > l:best
+                            let l:best = len(l:response['response'])
+                            let l:raw = json_encode(l:response)
+                        endif
+                    endif
+                catch /.*/
+                    continue
+                endtry
             endif
         endfor
     endif
