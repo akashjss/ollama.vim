@@ -42,7 +42,8 @@ highlight llama_hl_info guifg=#77ff2f ctermfg=119
 "   keymap_accept_word: keymap to accept word suggestion, default: <C-B>
 "
 let s:default_config = {
-    \ 'endpoint':           'http://127.0.0.1:8012/infill',
+    \ 'endpoint':           'http://127.0.0.1:11434/api/generate',
+    \ 'model':             '',  " Empty by default, user must specify
     \ 'api_key':            '',
     \ 'n_prefix':           256,
     \ 'n_suffix':           64,
@@ -127,6 +128,15 @@ function! llama#init()
     if !executable('curl')
         echohl WarningMsg
         echo 'llama.vim requires the "curl" command to be available'
+        echohl None
+        return
+    endif
+
+    " Check if model is specified
+    if empty(g:llama_config.model)
+        echohl WarningMsg
+        echo 'llama.vim requires a model to be specified in g:llama_config.model'
+        echo 'Example: let g:llama_config.model = "deepseek-coder-v2"'
         echohl None
         return
     endif
@@ -343,18 +353,16 @@ function! s:ring_update()
 
     " no samplers needed here
     let l:request = json_encode({
-        \ 'input_prefix':     "",
-        \ 'input_suffix':     "",
-        \ 'input_extra':      l:extra_context,
-        \ 'prompt':           "",
-        \ 'n_predict':        0,
-        \ 'temperature':      0.0,
-        \ 'stream':           v:false,
-        \ 'samplers':         [],
-        \ 'cache_prompt':     v:true,
-        \ 't_max_prompt_ms':  1,
-        \ 't_max_predict_ms': 1,
-        \ 'response_fields':  [""]
+        \ 'model': g:llama_config.model,  " Use the configured model
+        \ 'prompt': l:prefix . l:middle,
+        \ 'suffix': l:suffix,
+        \ 'stream': v:false,
+        \ 'options': {
+        \     'num_predict': g:llama_config.n_predict,
+        \     'temperature': 0.7,
+        \     'top_k': 40,
+        \     'top_p': 0.90
+        \ }
         \ })
 
     let l:curl_command = [
@@ -580,32 +588,16 @@ function! llama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     endfor
 
     let l:request = json_encode({
-        \ 'input_prefix':     l:prefix,
-        \ 'input_suffix':     l:suffix,
-        \ 'input_extra':      l:extra_ctx,
-        \ 'prompt':           l:middle,
-        \ 'n_predict':        g:llama_config.n_predict,
-        \ 'n_indent':         l:indent,
-        \ 'top_k':            40,
-        \ 'top_p':            0.90,
-        \ 'stream':           v:false,
-        \ 'samplers':         ["top_k", "top_p", "infill"],
-        \ 'cache_prompt':     v:true,
-        \ 't_max_prompt_ms':  g:llama_config.t_max_prompt_ms,
-        \ 't_max_predict_ms': l:t_max_predict_ms,
-        \ 'response_fields':  [
-        \                       "content",
-        \                       "timings/prompt_n",
-        \                       "timings/prompt_ms",
-        \                       "timings/prompt_per_token_ms",
-        \                       "timings/prompt_per_second",
-        \                       "timings/predicted_n",
-        \                       "timings/predicted_ms",
-        \                       "timings/predicted_per_token_ms",
-        \                       "timings/predicted_per_second",
-        \                       "truncated",
-        \                       "tokens_cached",
-        \                     ],
+        \ 'model': g:llama_config.model,  " Use the configured model
+        \ 'prompt': l:prefix . l:middle,
+        \ 'suffix': l:suffix,
+        \ 'stream': v:false,
+        \ 'options': {
+        \     'num_predict': g:llama_config.n_predict,
+        \     'temperature': 0.7,
+        \     'top_k': 40,
+        \     'top_p': 0.90
+        \ }
         \ })
 
     let l:curl_command = [
@@ -736,7 +728,6 @@ function! s:fim_try_hint(pos_x, pos_y)
     " Check if the completion is cached
     let l:raw = get(g:cache_data, l:hash, v:null)
 
-    " ... or if there is a cached completion nearby (10 characters behind)
     " Looks at the previous 10 characters to see if a completion is cached. If one is found at (x,y)
     " then it checks that the characters typed after (x,y) match up with the cached completion result.
     if l:raw == v:null
@@ -755,16 +746,16 @@ function! s:fim_try_hint(pos_x, pos_y)
                 endif
 
                 let l:response = json_decode(l:response_cached)
-                if l:response['content'][0:i] !=# l:removed
+                if l:response['response'][0:i] !=# l:removed
                     continue
                 endif
 
-                let l:response['content'] = l:response['content'][i + 1:]
-                if len(l:response['content']) > 0
+                let l:response['response'] = l:response['response'][i + 1:]
+                if len(l:response['response']) > 0
                     if l:raw == v:null
                         let l:raw = json_encode(l:response)
-                    elseif len(l:response['content']) > l:best
-                        let l:best = len(l:response['content'])
+                    elseif len(l:response['response']) > l:best
+                        let l:best = len(l:response['response'])
                         let l:raw = json_encode(l:response)
                     endif
                 endif
@@ -808,7 +799,7 @@ function! s:fim_render(pos_x, pos_y, data)
     if l:can_accept
         let l:response = json_decode(l:raw)
 
-        for l:part in split(get(l:response, 'content', ''), "\n", 1)
+        for l:part in split(get(l:response, 'response', ''), "\n", 1)
             call add(l:content, l:part)
         endfor
 
@@ -817,19 +808,14 @@ function! s:fim_render(pos_x, pos_y, data)
             call remove(l:content, -1)
         endwhile
 
-        let l:n_cached  = get(l:response, 'tokens_cached', 0)
-        let l:truncated = get(l:response, 'timings/truncated', v:false)
+        let l:n_cached  = 0  " Ollama doesn't provide this info
+        let l:truncated = v:false  " Ollama doesn't provide this info
 
         " if response.timings is available
-        if has_key(l:response, 'timings/prompt_n') && has_key(l:response, 'timings/prompt_ms') && has_key(l:response, 'timings/prompt_per_second')
-            \ && has_key(l:response, 'timings/predicted_n') && has_key(l:response, 'timings/predicted_ms') && has_key(l:response, 'timings/predicted_per_second')
-            let l:n_prompt    = get(l:response, 'timings/prompt_n', 0)
-            let l:t_prompt_ms = get(l:response, 'timings/prompt_ms', 1)
-            let l:s_prompt    = get(l:response, 'timings/prompt_per_second', 0)
-
-            let l:n_predict    = get(l:response, 'timings/predicted_n', 0)
-            let l:t_predict_ms = get(l:response, 'timings/predicted_ms', 1)
-            let l:s_predict    = get(l:response, 'timings/predicted_per_second', 0)
+        if has_key(l:response, 'eval_count') && has_key(l:response, 'eval_duration')
+            let l:n_predict    = get(l:response, 'eval_count', 0)
+            let l:t_predict_ms = get(l:response, 'eval_duration', 1) / 1000000.0  " Convert from ns to ms
+            let l:s_predict    = l:n_predict / (l:t_predict_ms / 1000.0)  " tokens per second
         endif
 
         let l:has_info = v:true
