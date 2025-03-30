@@ -920,48 +920,60 @@ function! s:fim_render(pos_x, pos_y, data)
 
     " get the generated suggestion
     if l:can_accept
-        let l:response = json_decode(l:raw)
+        try
+            let l:response = json_decode(l:raw)
 
-        " Debug logging
-        echohl WarningMsg
-        echom "[Ollama] Parsed response for rendering: " . json_encode(l:response)
-        echohl None
-
-        " Extract the generated text from Ollama response
-        let l:generated_text = get(l:response, 'response', '')
-        if empty(l:generated_text)
+            " Debug logging
             echohl WarningMsg
-            echom "[Ollama] No text generated in response"
+            echom "[Ollama] Parsed response for rendering: " . json_encode(l:response)
+            echohl None
+
+            " Validate response structure
+            if type(l:response) != v:t_dict
+                throw "Invalid response format: not a dictionary"
+            endif
+
+            " Extract the generated text from Ollama response
+            let l:generated_text = get(l:response, 'response', '')
+            if empty(l:generated_text)
+                echohl WarningMsg
+                echom "[Ollama] No text generated in response"
+                echohl None
+                return
+            endif
+
+            " Split the generated text into lines
+            for l:part in split(l:generated_text, "\n", 1)
+                call add(l:content, l:part)
+            endfor
+
+            " Debug logging
+            echohl WarningMsg
+            echom "[Ollama] Content to render: " . json_encode(l:content)
+            echohl None
+
+            " remove trailing new lines
+            while len(l:content) > 0 && l:content[-1] == ""
+                call remove(l:content, -1)
+            endwhile
+
+            let l:n_cached  = 0  " Ollama doesn't provide this info
+            let l:truncated = v:false  " Ollama doesn't provide this info
+
+            " if response.timings is available
+            if has_key(l:response, 'eval_count') && has_key(l:response, 'eval_duration')
+                let l:n_predict    = get(l:response, 'eval_count', 0)
+                let l:t_predict_ms = get(l:response, 'eval_duration', 1) / 1000000.0  " Convert from ns to ms
+                let l:s_predict    = l:n_predict / (l:t_predict_ms / 1000.0)  " tokens per second
+            endif
+
+            let l:has_info = v:true
+        catch /.*/
+            echohl ErrorMsg
+            echom "[Ollama] Failed to parse response: " . v:exception
             echohl None
             return
-        endif
-
-        " Split the generated text into lines
-        for l:part in split(l:generated_text, "\n", 1)
-            call add(l:content, l:part)
-        endfor
-
-        " Debug logging
-        echohl WarningMsg
-        echom "[Ollama] Content to render: " . json_encode(l:content)
-        echohl None
-
-        " remove trailing new lines
-        while len(l:content) > 0 && l:content[-1] == ""
-            call remove(l:content, -1)
-        endwhile
-
-        let l:n_cached  = 0  " Ollama doesn't provide this info
-        let l:truncated = v:false  " Ollama doesn't provide this info
-
-        " if response.timings is available
-        if has_key(l:response, 'eval_count') && has_key(l:response, 'eval_duration')
-            let l:n_predict    = get(l:response, 'eval_count', 0)
-            let l:t_predict_ms = get(l:response, 'eval_duration', 1) / 1000000.0  " Convert from ns to ms
-            let l:s_predict    = l:n_predict / (l:t_predict_ms / 1000.0)  " tokens per second
-        endif
-
-        let l:has_info = v:true
+        endtry
     endif
 
     if len(l:content) == 0
