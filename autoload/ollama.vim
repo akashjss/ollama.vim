@@ -632,7 +632,7 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
         \     'temperature': 0.7,
         \     'top_k': 40,
         \     'top_p': 0.90,
-        \     'stop': ["\n\n", "```"]  " Stop on double newline or code block end
+        \     'stop': ["\n\n", "```"]
         \ }
         \ })
 
