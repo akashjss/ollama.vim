@@ -202,6 +202,11 @@ function! ollama#init()
         endif
     endif
 
+    " Debug logging
+    echohl WarningMsg
+    echom "[Ollama] Virtual text support - Neovim: " . s:ghost_text_nvim . ", Vim: " . s:ghost_text_vim
+    echohl None
+
     augroup ollama
         autocmd!
         exe "autocmd InsertEnter * inoremap <expr> <silent> " .. g:ollama_config.keymap_trigger .. " ollama#fim_inline(v:false, v:false)"
@@ -624,7 +629,7 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     " Prepare the request for Ollama API
     let l:request = json_encode({
         \ 'model': g:ollama_config.model,
-        \ 'prompt': '<PRE> ' . l:prefix . l:middle . ' <SUF>' . l:suffix . ' <MID>',
+        \ 'prompt': '<PRE>' . l:prefix . l:middle . '<SUF>' . l:suffix . '<MID>',
         \ 'stream': v:false,
         \ 'options': {
         \     'num_predict': g:ollama_config.n_predict,
@@ -1001,6 +1006,7 @@ function! s:fim_render(pos_x, pos_y, data)
 
     if s:ghost_text_nvim
         let l:id_vt_fim = nvim_create_namespace('vt_fim')
+        call nvim_buf_clear_namespace(l:bufnr, l:id_vt_fim, 0, -1)
     endif
 
     let l:info = ''
@@ -1033,16 +1039,21 @@ function! s:fim_render(pos_x, pos_y, data)
 
     " display the suggestion and append the info to the end of the first line
     if s:ghost_text_nvim
+        " First line with info
         call nvim_buf_set_extmark(l:bufnr, l:id_vt_fim, l:pos_y - 1, l:pos_x - 1, {
             \ 'virt_text': [[l:content[0], 'ollama_hl_hint'], [l:info, 'ollama_hl_info']],
             \ 'virt_text_win_col': virtcol('.') - 1
             \ })
 
-        call nvim_buf_set_extmark(l:bufnr, l:id_vt_fim, l:pos_y - 1, 0, {
-            \ 'virt_lines': map(l:content[1:], {idx, val -> [[val, 'ollama_hl_hint']]}),
-            \ 'virt_text_win_col': virtcol('.')
-            \ })
+        " Additional lines
+        if len(l:content) > 1
+            call nvim_buf_set_extmark(l:bufnr, l:id_vt_fim, l:pos_y - 1, 0, {
+                \ 'virt_lines': map(l:content[1:], {idx, val -> [[val, 'ollama_hl_hint']]}),
+                \ 'virt_text_win_col': virtcol('.')
+                \ })
+        endif
     elseif s:ghost_text_vim
+        " First line
         let l:full_suffix = l:content[0]
         if !empty(l:full_suffix)
             let l:new_suffix = l:full_suffix[0:-len(l:line_cur[l:pos_x:])-1]
@@ -1051,6 +1062,8 @@ function! s:fim_render(pos_x, pos_y, data)
                 \ 'text': l:new_suffix
                 \ })
         endif
+
+        " Additional lines
         for line in l:content[1:]
             call prop_add(l:pos_y, 0, {
                 \ 'type': s:hlgroup_hint,
@@ -1059,6 +1072,8 @@ function! s:fim_render(pos_x, pos_y, data)
                 \ 'text_align': 'below'
                 \ })
         endfor
+
+        " Info line
         if !empty(l:info)
             call prop_add(l:pos_y, 0, {
                 \ 'type': s:hlgroup_info,
