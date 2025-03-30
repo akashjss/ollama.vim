@@ -71,8 +71,12 @@ if !exists('g:ollama_config')
     let g:ollama_config = {}
 endif
 
-" Merge user config with defaults
-let g:ollama_config = extend(copy(s:default_config), g:ollama_config, 'force')
+" Ensure all required keys exist in user config
+for [key, value] in items(s:default_config)
+    if !has_key(g:ollama_config, key)
+        let g:ollama_config[key] = value
+    endif
+endfor
 
 " Initialize plugin state
 let s:ollama_enabled = v:true

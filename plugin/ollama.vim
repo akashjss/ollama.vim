@@ -11,6 +11,13 @@ if !has_key(g:ollama_config, 'model')
     let g:ollama_config.model = 'gemma3:12b'
 endif
 
+" Ensure all required keys exist
+for [key, value] in items(s:default_config)
+    if !has_key(g:ollama_config, key)
+        let g:ollama_config[key] = value
+    endif
+endfor
+
 " register commands
 call ollama#setup_commands()
 
