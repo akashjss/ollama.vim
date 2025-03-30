@@ -93,11 +93,15 @@ Examples:
     ```vim
     let g:ollama_config.keymap_accept_full = "<C-S>"
     ```
+sample ~/.vimrc
+
+```bash
+```
 
 Please refer to `:help ollama_config` or the [source](./autoload/ollama.vim)
 for the full list of options.
 
-### llama.cpp setup
+### Ollama setup
 
 The plugin requires a [ollama](https://ollama.com/) server instance to be running at [`g:ollama_config.endpoint`](https://github.com/akashjss/ollama.vim/blob/master/autoload/ollama.vim#L37).
 

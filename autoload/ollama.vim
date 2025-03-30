@@ -507,12 +507,6 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
         return
     endif
 
-    "if s:hint_shown && empty(a:prev)
-    "    return
-    "endif
-
-    "let s:t_fim_start = reltime()
-
     let l:ctx_local = s:fim_ctx_local(l:pos_x, l:pos_y, a:prev)
 
     let l:prefix = l:ctx_local['prefix']
@@ -588,7 +582,7 @@ function! ollama#fim(pos_x, pos_y, is_auto, prev, use_cache) abort
     endfor
 
     let l:request = json_encode({
-        \ 'model': g:ollama_config.model,  " Use the configured model
+        \ 'model': g:ollama_config.model,
         \ 'prompt': l:prefix . l:middle,
         \ 'suffix': l:suffix,
         \ 'stream': v:false,
